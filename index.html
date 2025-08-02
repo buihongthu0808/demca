@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trò chơi: Em Tập Đếm Cá</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js is no longer needed for background music but kept for sound effects -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,16 +34,19 @@
             right: 0;
             height: 75%; /* Mực nước chiếm 75% chiều cao bể */
         }
-        .fish {
+        .fish, .deco-fish {
             position: absolute;
             width: 80px;
             height: 55px;
             transition: transform 0.3s ease-in-out;
             animation: swim 4s ease-in-out infinite alternate;
         }
+        .deco-fish {
+            animation-duration: 8s; /* Cá trang trí bơi chậm hơn */
+        }
         /* Responsive fish size */
         @media (max-width: 640px) {
-            .fish {
+            .fish, .deco-fish {
                 width: 50px;
                 height: 35px;
             }
@@ -112,6 +116,18 @@
         .speaker-btn:hover {
             transform: scale(1.2);
         }
+        #music-toggle-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            font-size: 2.5rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #music-toggle-btn:hover {
+            transform: scale(1.1);
+        }
         /* Spinner for loading */
         .loader {
             border: 4px solid #f3f3f3;
@@ -126,6 +142,41 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* Memory Game Styles */
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .memory-card {
+            background-color: #3498db;
+            border-radius: 8px;
+            cursor: pointer;
+            aspect-ratio: 1 / 1;
+            transform-style: preserve-3d;
+            transition: transform 0.5s;
+            font-size: 2.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .memory-card.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .memory-card .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .memory-card .card-back {
+            background-color: #2980b9;
+            color: white;
+            transform: rotateY(180deg);
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -136,15 +187,19 @@
         <div id="game-container" class="w-full mx-auto bg-sky-100/70 rounded-3xl p-6 shadow-2xl border-4 border-white">
         </div>
     </main>
+    
+    <button id="music-toggle-btn" aria-label="Bật hoặc tắt nhạc nền">
+        <span id="music-on-icon">🔊</span>
+        <span id="music-off-icon" style="display: none;">🔇</span>
+    </button>
 
     <div id="start-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="start-modal-title">
         <div class="bg-white rounded-2xl p-8 text-center max-w-xl shadow-lg transform transition-all">
             <div class="relative z-10">
-                 <div class="flex justify-center items-center mb-6">
-                    <h2 id="start-modal-title" class="text-5xl font-bold text-sky-700 leading-tight">Chào mừng em đến với trò chơi<br>Đại Dương Vui Vẻ!</h2>
-                    <button id="start-speaker-button" class="speaker-btn text-5xl ml-4" aria-label="Phát lại hướng dẫn">🔊</button>
+                 <div class="mb-6">
+                    <h2 id="start-modal-title" class="text-6xl font-bold uppercase bg-gradient-to-r from-cyan-500 to-blue-500 text-transparent bg-clip-text leading-tight">Đại Dương Vui Vẻ</h2>
                 </div>
-                <p class="text-slate-600 text-2xl mb-10">Em hãy đếm số cá trong bể và chọn đáp án đúng nhé. Em hãy nhấn nút bắt đầu nào!</p>
+                <p class="text-slate-600 text-2xl mb-10">Em hãy đếm số cá trong bể và chọn đáp án đúng nhé.<br>Em hãy nhấn nút bắt đầu nào!</p>
                 <button id="start-button" onclick="startGame()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-10 rounded-full text-3xl option-btn start-button-pulse">Bắt đầu!</button>
             </div>
         </div>
@@ -157,7 +212,26 @@
         </div>
     </div>
 
+    <!-- Trình phát âm thanh -->
+    <audio id="audio-player" preload="auto"></audio>
+    <audio id="music-player" loop preload="auto"></audio>
+
     <script>
+        // =================================================================
+        // DÁN CÁC ĐƯỜNG LINK ÂM THANH CỦA BẠN VÀO ĐÂY
+        // =================================================================
+        const audioFiles = {
+            welcome: "https://res.cloudinary.com/dufueknf2/video/upload/v1754143870/chaomung_dxs7bn.wav",
+            question: "https://res.cloudinary.com/dufueknf2/video/upload/v1754142920/cauhoi_c8rzre.wav",
+            continue: "https://res.cloudinary.com/dufueknf2/video/upload/v1754142919/tieptheo_di0eyz.wav",
+            correct: "https://res.cloudinary.com/dufueknf2/video/upload/v1754142918/dungroi_yyhi2i.wav",
+            incorrect: "https://res.cloudinary.com/dufueknf2/video/upload/v1754142918/sairoi_xp5t3n.wav",
+            end_good: "https://res.cloudinary.com/dufueknf2/video/upload/v1754143868/chucmung_illqfc.wav",
+            end_try_again: "https://res.cloudinary.com/dufueknf2/video/upload/v1754142918/cogang_r43bsg.wav",
+            background_music: "https://res.cloudinary.com/dufueknf2/video/upload/v1754126201/nhacnen_gd56fv.mp3"
+        };
+        // =================================================================
+
         let gameData = [];
         const NUMBER_OF_QUESTIONS = 10;
         
@@ -168,41 +242,50 @@
         ];
 
         let currentQuestionIndex = 0, score = 0, isAnswering = false;
-        let toneLoaded = false;
-        let vietnameseVoice;
-        let backgroundMusic;
+        
+        const audioPlayer = document.getElementById('audio-player');
+        const musicPlayer = document.getElementById('music-player');
+        const musicToggleBtn = document.getElementById('music-toggle-btn');
+        const musicOnIcon = document.getElementById('music-on-icon');
+        const musicOffIcon = document.getElementById('music-off-icon');
 
-        const correctSound = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 } }).toDestination();
-        const incorrectSound = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.4, sustain: 0, release: 0.4 } }).toDestination();
-
-        // --- HÀM XỬ LÝ GIỌNG NÓI & ÂM THANH ---
-        function loadVoices() {
-            const voices = window.speechSynthesis.getVoices();
-            vietnameseVoice = voices.find(voice => voice.lang === 'vi-VN');
-        }
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-
-        function speak(text) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'vi-VN';
-                if (vietnameseVoice) utterance.voice = vietnameseVoice;
-                utterance.rate = 0.9;
-                window.speechSynthesis.speak(utterance);
+        // --- HÀM XỬ LÝ ÂM THANH ---
+        function playAudio(soundKey, callback) {
+            if (audioFiles[soundKey] && audioFiles[soundKey] !== "placeholder.mp3") {
+                audioPlayer.src = audioFiles[soundKey];
+                if (callback) {
+                    audioPlayer.onended = callback;
+                } else {
+                    audioPlayer.onended = null;
+                }
+                audioPlayer.play().catch(e => console.error("Audio play failed:", e));
+            } else if (callback) {
+                callback();
             }
         }
 
-        function setupBackgroundMusic() {
-            if (backgroundMusic) return;
-            const musicSynth = new Tone.FMSynth({ harmonicity: 3, modulationIndex: 10, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.5 }, modulationEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.5 } }).toDestination();
-            musicSynth.volume.value = -18;
-            const melody = ['C4', 'E4', 'G4', 'E4', 'A4', 'G4', 'E4', 'C4'];
-            backgroundMusic = new Tone.Sequence((time, note) => {
-                musicSynth.triggerAttackRelease(note, '8n', time);
-            }, melody, '4n');
-            backgroundMusic.loop = true;
-            Tone.Transport.bpm.value = 90;
+        function playMusic() {
+             if (audioFiles.background_music && audioFiles.background_music !== "placeholder.mp3") {
+                musicPlayer.src = audioFiles.background_music;
+                musicPlayer.volume = 0.1;
+                musicPlayer.play().catch(e => console.error("Music play failed:", e));
+            }
+        }
+
+        function stopMusic() {
+            musicPlayer.pause();
+            musicPlayer.currentTime = 0;
+        }
+
+        function toggleMusic() {
+            musicPlayer.muted = !musicPlayer.muted;
+            if (musicPlayer.muted) {
+                musicOnIcon.style.display = 'none';
+                musicOffIcon.style.display = 'inline';
+            } else {
+                musicOnIcon.style.display = 'inline';
+                musicOffIcon.style.display = 'none';
+            }
         }
 
         function createBubbles() {
@@ -233,16 +316,16 @@
             }
         }
 
-        function buildGameUI() {
+        function buildGameUI(isTransition = false) {
             const gameContainer = document.getElementById('game-container');
             gameContainer.innerHTML = `
                 <div class="text-center mb-4">
                     <h1 class="text-4xl md:text-5xl font-bold text-sky-800">🐠 Em Tập Đếm Cá 🐠</h1>
                     <p class="text-slate-600 text-xl mt-2 flex items-center justify-center">
-                        <span id="question-text">Trong mỗi bể có bao nhiêu con cá?</span>
+                        <span id="question-text">${isTransition ? 'Hãy sẵn sàng nhé...' : 'Trong mỗi bể có bao nhiêu con cá?'}</span>
                     </p>
                 </div>
-                <div class="mb-4" role="status">
+                <div class="mb-4" role="status" style="${isTransition ? 'visibility: hidden;' : ''}">
                     <div class="flex justify-between items-center text-sky-700 font-bold mb-1">
                         <span>Tiến độ</span>
                         <span id="score">Điểm: 0</span>
@@ -255,48 +338,47 @@
                     <div id="water-level" class="water" aria-hidden="true"></div>
                     <div id="fish-container" class="absolute inset-0"></div>
                 </div>
-                <div id="options-container" class="grid grid-cols-3 gap-4" role="group" aria-label="Các lựa chọn trả lời"></div>
+                <div id="options-container" class="grid grid-cols-3 gap-4" role="group" aria-label="Các lựa chọn trả lời" style="${isTransition ? 'visibility: hidden;' : ''}"></div>
             `;
         }
 
         function startGame() {
-            if (!toneLoaded) {
-                const silentUtterance = new SpeechSynthesisUtterance('');
-                window.speechSynthesis.speak(silentUtterance);
-
-                Tone.start();
-                toneLoaded = true;
-                setupBackgroundMusic();
-            }
-            Tone.Transport.start();
+            playMusic();
             
             document.getElementById('start-modal').style.display = 'none';
             document.getElementById('bubbles-background').style.display = 'none';
             document.getElementById('game-wrapper').style.display = 'block';
             
-            buildGameUI();
+            buildGameUI(true);
             generateNewGameData();
 
             currentQuestionIndex = 0;
             score = 0;
             isAnswering = false;
             
-            updateScoreDisplay();
-            updateProgressBar();
-            loadQuestion();
+            requestAnimationFrame(() => {
+                drawFish(7, true);
+            });
+
+            playAudio('welcome', () => {
+                buildGameUI(false);
+                updateScoreDisplay();
+                updateProgressBar();
+                loadQuestion();
+            });
         }
 
         function loadQuestion() {
             isAnswering = false;
             if (currentQuestionIndex === 0) {
-                speak("Trong mỗi bể có bao nhiêu con cá?");
+                playAudio('question');
             } else {
-                speak("Tiếp tục nhé");
+                playAudio('continue');
             }
 
             const question = gameData[currentQuestionIndex];
             
-            setTimeout(() => { drawFish(question.count); }, 50);
+            requestAnimationFrame(() => { drawFish(question.count, false); });
 
             const options = generateOptions(question.count);
             const optionsContainer = document.getElementById('options-container');
@@ -311,7 +393,7 @@
             });
         }
 
-        function drawFish(count) {
+        function drawFish(count, isDecoration) {
             const fishContainer = document.getElementById('fish-container');
             if (!fishContainer) return;
             fishContainer.innerHTML = '';
@@ -352,7 +434,7 @@
 
                 placedFish.push(newFish);
                 const fishEl = document.createElement('div');
-                fishEl.className = 'fish';
+                fishEl.className = isDecoration ? 'deco-fish' : 'fish';
                 fishEl.innerHTML = fishSVG[i % fishSVG.length];
                 fishEl.style.left = `${newFish.x}px`;
                 fishEl.style.top = `${newFish.y}px`;
@@ -400,35 +482,35 @@
                 feedbackContent.className = 'bg-green-500 rounded-2xl p-8 text-center max-w-sm shadow-lg transform transition-all text-white';
                 feedbackIcon.innerHTML = '✔️';
                 message = 'Đúng rồi!';
-                correctSound.triggerAttackRelease("C5", "8n");
+                playAudio('correct');
             } else {
                 feedbackContent.className = 'bg-red-500 rounded-2xl p-8 text-center max-w-sm shadow-lg transform transition-all text-white';
                 feedbackIcon.innerHTML = '❌';
                 message = 'Sai rồi!';
-                incorrectSound.triggerAttackRelease("A2", "4n");
+                playAudio('incorrect');
             }
             feedbackText.textContent = message;
-            speak(message);
             feedbackModal.style.display = 'flex';
         }
 
         function endGame() {
-            Tone.Transport.stop();
+            stopMusic();
             const gameContainer = document.getElementById('game-container');
-            let endMessageTitle, endMessageText, endMessageIcon, finalMessage;
+            let endMessageTitle, endMessageText, endMessageIcon, audioKey;
 
             if (score >= 80) {
                 endMessageIcon = '🎉';
                 endMessageTitle = 'Chúc Mừng!';
                 endMessageText = 'Em đã hoàn thành xuất sắc!';
+                audioKey = 'end_good';
             } else {
                 endMessageIcon = '💪';
                 endMessageTitle = 'Cố Gắng Lên!';
                 endMessageText = 'Lần sau em cố gắng hơn nhé!';
+                audioKey = 'end_try_again';
             }
             
-            finalMessage = `${endMessageTitle} ${endMessageText} Tổng điểm của em là ${score}`;
-            speak(finalMessage);
+            playAudio(audioKey);
 
             gameContainer.innerHTML = `
                 <div class="text-center py-10" role="alert">
@@ -436,7 +518,6 @@
                     <p class="text-2xl text-slate-700 mb-6">${endMessageText}</p>
                     <p class="text-3xl text-sky-800 font-bold mb-8">Tổng điểm của em là: ${score}</p>
                     <div class="flex justify-center gap-4 mb-6">
-                        <button onclick="getFishStory()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-full text-lg option-btn">✨ Kể Chuyện Về Cá</button>
                         <button onclick="getOceanQuiz()" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-6 rounded-full text-lg option-btn">✨ Đố Vui Đại Dương</button>
                     </div>
                     <button onclick="resetToStartScreen()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-full text-xl option-btn">Chơi lại</button>
@@ -451,8 +532,6 @@
             const bubblesBg = document.getElementById('bubbles-background');
             bubblesBg.style.display = 'block';
             createBubbles();
-            const welcomeMessage = "Chào mừng em đến với trò chơi Đại dương vui vẻ. Em hãy đếm số cá trong bể và chọn đáp án đúng nhé. Em hãy nhấn nút bắt đầu nào!";
-            speak(welcomeMessage);
         }
 
         function updateScoreDisplay() {
@@ -502,16 +581,6 @@
             }
         }
 
-        async function getFishStory() {
-            const prompt = "Hãy viết một câu chuyện thật ngắn (khoảng 4-5 câu), vui nhộn và đơn giản cho trẻ em 5 tuổi về những chú cá nhiều màu sắc đang bơi lội trong bể. Câu chuyện nên có một bài học nhẹ nhàng về tình bạn hoặc sự khác biệt.";
-            const story = await callGemini(prompt);
-            if (story) {
-                const geminiContent = document.getElementById('gemini-content');
-                geminiContent.innerHTML = `<p>${story.replace(/\n/g, '<br>')}</p><button onclick="speak('${story.replace(/'/g, "\\'").replace(/\n/g, ' ')}')" class="speaker-btn text-2xl mt-2" aria-label="Nghe lại câu chuyện">🔊</button>`;
-                speak(story);
-            }
-        }
-
         async function getOceanQuiz() {
             const prompt = `Tạo 1 câu đố vui dạng trắc nghiệm cho trẻ 5 tuổi về sinh vật biển. Câu hỏi phải thật đơn giản. Cung cấp 3 lựa chọn, trong đó chỉ có 1 đáp án đúng. Trả về dưới dạng một đối tượng JSON duy nhất. Ví dụ: {"question": "Con gì có 8 cái tay?", "options": ["Cá mập", "Bạch tuộc", "Cá heo"], "answer": "Bạch tuộc"}`;
             const schema = { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "question": { "type": "STRING" }, "options": { "type": "ARRAY", "items": { "type": "STRING" } }, "answer": { "type": "STRING" } } } };
@@ -529,7 +598,6 @@
                         <div class="grid grid-cols-3 gap-2" role="group">${optionsHtml}</div>
                         <p id="quiz-feedback" class="text-center mt-2 font-bold" role="status"></p>
                     `;
-                    speak(quizData.question);
                 } catch (e) {
                      console.error("Failed to parse quiz JSON:", e);
                      document.getElementById('gemini-content').innerHTML = '<p class="text-red-500 text-center">Lỗi khi xử lý câu đố. Vui lòng thử lại!</p>';
@@ -544,27 +612,26 @@
                 button.classList.add('bg-green-400');
                 feedbackEl.textContent = 'Đúng rồi!';
                 feedbackEl.classList.add('text-green-700');
-                speak('Đúng rồi!');
             } else {
                 button.classList.add('bg-red-400');
                 feedbackEl.textContent = 'Sai rồi!';
                 feedbackEl.classList.add('text-red-700');
-                speak('Sai rồi!');
             }
         }
 
         window.addEventListener('load', () => {
-            loadVoices();
             createBubbles();
-            const welcomeMessage = "Chào mừng em đến với trò chơi Đại dương vui vẻ. Em hãy đếm số cá trong bể và chọn đáp án đúng nhé. Em hãy nhấn nút bắt đầu nào!";
-            speak(welcomeMessage);
             
             const startSpeakerButton = document.getElementById('start-speaker-button');
             if(startSpeakerButton) {
-                startSpeakerButton.addEventListener('click', (e) => {
+                 startSpeakerButton.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    speak(welcomeMessage);
+                    playAudio('welcome');
                 });
+            }
+
+            if(musicToggleBtn) {
+                musicToggleBtn.addEventListener('click', toggleMusic);
             }
         });
     </script>
