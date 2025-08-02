@@ -40,6 +40,13 @@
             transition: transform 0.3s ease-in-out;
             animation: swim 4s ease-in-out infinite alternate;
         }
+        /* Responsive fish size */
+        @media (max-width: 640px) {
+            .fish {
+                width: 50px;
+                height: 35px;
+            }
+        }
         .fish:hover {
             transform: scale(1.2);
         }
@@ -134,10 +141,10 @@
         <div class="bg-white rounded-2xl p-8 text-center max-w-xl shadow-lg transform transition-all">
             <div class="relative z-10">
                  <div class="flex justify-center items-center mb-6">
-                    <h2 id="start-modal-title" class="text-5xl font-bold text-sky-700 leading-tight">Chào mừng bé đến với trò chơi<br>Đại Dương Vui Vẻ!</h2>
+                    <h2 id="start-modal-title" class="text-5xl font-bold text-sky-700 leading-tight">Chào mừng em đến với trò chơi<br>Đại Dương Vui Vẻ!</h2>
                     <button id="start-speaker-button" class="speaker-btn text-5xl ml-4" aria-label="Phát lại hướng dẫn">🔊</button>
                 </div>
-                <p class="text-slate-600 text-2xl mb-10">Bé hãy đếm số cá trong bể và chọn đáp án đúng nhé. Bé hãy nhấn nút bắt đầu nào!</p>
+                <p class="text-slate-600 text-2xl mb-10">Em hãy đếm số cá trong bể và chọn đáp án đúng nhé. Em hãy nhấn nút bắt đầu nào!</p>
                 <button id="start-button" onclick="startGame()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-10 rounded-full text-3xl option-btn start-button-pulse">Bắt đầu!</button>
             </div>
         </div>
@@ -230,7 +237,7 @@
             const gameContainer = document.getElementById('game-container');
             gameContainer.innerHTML = `
                 <div class="text-center mb-4">
-                    <h1 class="text-4xl md:text-5xl font-bold text-sky-800">🐠 Bé Tập Đếm Cá 🐠</h1>
+                    <h1 class="text-4xl md:text-5xl font-bold text-sky-800">🐠 Em Tập Đếm Cá 🐠</h1>
                     <p class="text-slate-600 text-xl mt-2 flex items-center justify-center">
                         <span id="question-text">Trong mỗi bể có bao nhiêu con cá?</span>
                     </p>
@@ -254,7 +261,6 @@
 
         function startGame() {
             if (!toneLoaded) {
-                // Sửa lỗi âm thanh trên Android: "mở khóa" audio context bằng tương tác người dùng
                 const silentUtterance = new SpeechSynthesisUtterance('');
                 window.speechSynthesis.speak(silentUtterance);
 
@@ -315,7 +321,10 @@
             
             if (bowlWidth === 0 || bowlHeight === 0) return;
 
-            const fishWidth = 80, fishHeight = 55;
+            const isMobile = window.innerWidth < 640;
+            const fishWidth = isMobile ? 50 : 80;
+            const fishHeight = isMobile ? 35 : 55;
+            
             const waterTop = bowlHeight * 0.25;
             const spawnableWidth = bowlWidth - fishWidth;
             const spawnableHeight = (bowlHeight * 0.75) - fishHeight;
@@ -329,7 +338,6 @@
                     const randomY = waterTop + (Math.random() * spawnableHeight);
                     newFish = { x: randomX, y: randomY, width: fishWidth, height: fishHeight };
                     for (const placed of placedFish) {
-                        // Sửa lỗi chồng chéo: sử dụng kiểm tra hình chữ nhật chính xác hơn
                         if (newFish.x < placed.x + placed.width &&
                             newFish.x + newFish.width > placed.x &&
                             newFish.y < placed.y + placed.height &&
@@ -339,7 +347,7 @@
                         }
                     }
                     attempts++;
-                } while (isOverlapping && attempts < 100); // Tăng số lần thử để đảm bảo tìm được vị trí
+                } while (isOverlapping && attempts < 100);
 
                 placedFish.push(newFish);
                 const fishEl = document.createElement('div');
@@ -411,21 +419,21 @@
             if (score >= 80) {
                 endMessageIcon = '🎉';
                 endMessageTitle = 'Chúc Mừng!';
-                endMessageText = 'Bé đã hoàn thành xuất sắc!';
+                endMessageText = 'Em đã hoàn thành xuất sắc!';
             } else {
                 endMessageIcon = '💪';
                 endMessageTitle = 'Cố Gắng Lên!';
-                endMessageText = 'Lần sau bé cố gắng hơn nhé!';
+                endMessageText = 'Lần sau em cố gắng hơn nhé!';
             }
             
-            finalMessage = `${endMessageTitle} ${endMessageText} Tổng điểm của bé là ${score}`;
+            finalMessage = `${endMessageTitle} ${endMessageText} Tổng điểm của em là ${score}`;
             speak(finalMessage);
 
             gameContainer.innerHTML = `
                 <div class="text-center py-10" role="alert">
                     <h2 class="text-5xl font-bold text-amber-500 mb-4">${endMessageIcon} ${endMessageTitle} ${endMessageIcon}</h2>
                     <p class="text-2xl text-slate-700 mb-6">${endMessageText}</p>
-                    <p class="text-3xl text-sky-800 font-bold mb-8">Tổng điểm của bé là: ${score}</p>
+                    <p class="text-3xl text-sky-800 font-bold mb-8">Tổng điểm của em là: ${score}</p>
                     <div class="flex justify-center gap-4 mb-6">
                         <button onclick="getFishStory()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-full text-lg option-btn">✨ Kể Chuyện Về Cá</button>
                         <button onclick="getOceanQuiz()" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-6 rounded-full text-lg option-btn">✨ Đố Vui Đại Dương</button>
@@ -442,7 +450,7 @@
             const bubblesBg = document.getElementById('bubbles-background');
             bubblesBg.style.display = 'block';
             createBubbles();
-            const welcomeMessage = "Chào mừng bé đến với trò chơi Đại dương vui vẻ. Bé hãy đếm số cá trong bể và chọn đáp án đúng nhé. Bé hãy nhấn nút bắt đầu nào!";
+            const welcomeMessage = "Chào mừng em đến với trò chơi Đại dương vui vẻ. Em hãy đếm số cá trong bể và chọn đáp án đúng nhé. Em hãy nhấn nút bắt đầu nào!";
             speak(welcomeMessage);
         }
 
@@ -547,7 +555,7 @@
         window.addEventListener('load', () => {
             loadVoices();
             createBubbles();
-            const welcomeMessage = "Chào mừng bé đến với trò chơi Đại dương vui vẻ. Bé hãy đếm số cá trong bể và chọn đáp án đúng nhé. Bé hãy nhấn nút bắt đầu nào!";
+            const welcomeMessage = "Chào mừng em đến với trò chơi Đại dương vui vẻ. Em hãy đếm số cá trong bể và chọn đáp án đúng nhé. Em hãy nhấn nút bắt đầu nào!";
             speak(welcomeMessage);
             
             const startSpeakerButton = document.getElementById('start-speaker-button');
