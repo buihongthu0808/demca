@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trò chơi: Bé Tập Đếm Cá</title>
+    <title>Trò chơi: Em Tập Đếm Cá</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -324,6 +324,7 @@
             const isMobile = window.innerWidth < 640;
             const fishWidth = isMobile ? 50 : 80;
             const fishHeight = isMobile ? 35 : 55;
+            const PADDING = isMobile ? 5 : 10;
             
             const waterTop = bowlHeight * 0.25;
             const spawnableWidth = bowlWidth - fishWidth;
@@ -338,16 +339,16 @@
                     const randomY = waterTop + (Math.random() * spawnableHeight);
                     newFish = { x: randomX, y: randomY, width: fishWidth, height: fishHeight };
                     for (const placed of placedFish) {
-                        if (newFish.x < placed.x + placed.width &&
-                            newFish.x + newFish.width > placed.x &&
-                            newFish.y < placed.y + placed.height &&
-                            newFish.y + newFish.height > placed.y) {
+                        if (newFish.x < placed.x + placed.width + PADDING &&
+                            newFish.x + newFish.width + PADDING > placed.x &&
+                            newFish.y < placed.y + placed.height + PADDING &&
+                            newFish.y + newFish.height + PADDING > placed.y) {
                             isOverlapping = true;
                             break;
                         }
                     }
                     attempts++;
-                } while (isOverlapping && attempts < 100);
+                } while (isOverlapping && attempts < 200);
 
                 placedFish.push(newFish);
                 const fishEl = document.createElement('div');
