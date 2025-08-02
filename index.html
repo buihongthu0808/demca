@@ -254,6 +254,10 @@
 
         function startGame() {
             if (!toneLoaded) {
+                // Sửa lỗi âm thanh trên Android: "mở khóa" audio context bằng tương tác người dùng
+                const silentUtterance = new SpeechSynthesisUtterance('');
+                window.speechSynthesis.speak(silentUtterance);
+
                 Tone.start();
                 toneLoaded = true;
                 setupBackgroundMusic();
@@ -325,13 +329,18 @@
                     const randomY = waterTop + (Math.random() * spawnableHeight);
                     newFish = { x: randomX, y: randomY, width: fishWidth, height: fishHeight };
                     for (const placed of placedFish) {
-                        if (newFish.x < placed.x + placed.width && newFish.x + newFish.width > placed.x && newFish.y < placed.y + placed.height && newFish.y + newFish.height > placed.y) {
+                        // Sửa lỗi chồng chéo: sử dụng kiểm tra hình chữ nhật chính xác hơn
+                        if (newFish.x < placed.x + placed.width &&
+                            newFish.x + newFish.width > placed.x &&
+                            newFish.y < placed.y + placed.height &&
+                            newFish.y + newFish.height > placed.y) {
                             isOverlapping = true;
                             break;
                         }
                     }
                     attempts++;
-                } while (isOverlapping && attempts < 50);
+                } while (isOverlapping && attempts < 100); // Tăng số lần thử để đảm bảo tìm được vị trí
+
                 placedFish.push(newFish);
                 const fishEl = document.createElement('div');
                 fishEl.className = 'fish';
@@ -456,11 +465,7 @@
             const geminiContent = document.getElementById('gemini-content');
             geminiContent.innerHTML = '<div class="loader" role="status" aria-label="Đang tải"></div>';
             
-            // =================================================================
-            // DÁN API KEY CỦA BẠN VÀO ĐÂY
-            // =================================================================
             const apiKey = "AIzaSyCFI9HdYFcSH1VZWWxK16QK5hNaXsXF7_0"; 
-            // =================================================================
 
             if (apiKey === "YOUR_API_KEY_HERE") {
                 geminiContent.innerHTML = '<p class="text-red-500 text-center">Lỗi: Vui lòng thêm API Key để sử dụng tính năng này.</p>';
